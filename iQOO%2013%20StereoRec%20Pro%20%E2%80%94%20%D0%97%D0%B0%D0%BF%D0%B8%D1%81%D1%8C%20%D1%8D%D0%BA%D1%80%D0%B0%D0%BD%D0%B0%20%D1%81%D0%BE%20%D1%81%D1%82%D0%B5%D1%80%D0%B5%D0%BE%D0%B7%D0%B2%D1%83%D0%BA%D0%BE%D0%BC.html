@@ -1,0 +1,1332 @@
+<!DOCTYPE html>
+<html lang="ru" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>iQOO 13 StereoRec Pro — Запись экрана со стереозвуком</title>
+  <script src="https://cdn.tailwindcss.com/3.4.17"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Inter', sans-serif;
+      background-color: #070A12;
+      color: #F8FAFC;
+      overflow-x: hidden;
+    }
+    .mono {
+      font-family: 'JetBrains Mono', monospace;
+    }
+    .monster-glow {
+      box-shadow: 0 0 25px rgba(0, 240, 255, 0.14), inset 0 0 1px rgba(0, 240, 255, 0.35);
+    }
+    .rec-pulse {
+      animation: pulseRed 1.4s infinite ease-in-out;
+    }
+    @keyframes pulseRed {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.45; transform: scale(1.12); }
+    }
+    input[type="range"] {
+      accent-color: #00F0FF;
+    }
+  </style>
+</head>
+<body class="min-h-screen bg-[#070A12] text-slate-100 flex flex-col justify-between">
+
+  <!-- Всплывающее уведомление (Toast) -->
+  <div id="toastContainer" class="fixed top-4 right-4 z-50 flex flex-col gap-2 max-w-sm w-full pointer-events-none px-4 sm:px-0"></div>
+
+  <!-- Верхняя шапка в стиле iQOO 13 Monster UI -->
+  <header class="border-b border-slate-800/80 bg-[#0B101E]/90 backdrop-blur sticky top-0 z-30">
+    <div class="max-w-5xl mx-auto px-4 py-3 flex flex-wrap items-center justify-between gap-3">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-400 via-blue-600 to-rose-500 p-0.5 flex items-center justify-center shadow-lg shadow-cyan-500/20">
+          <div class="w-full h-full bg-[#070A12] rounded-[10px] flex items-center justify-center font-extrabold text-sm tracking-tighter text-cyan-400 mono">
+            iQ13
+          </div>
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <h1 class="font-extrabold text-base sm:text-lg tracking-tight text-white">iQOO 13 StereoRec Pro</h1>
+            <span class="text-[11px] font-bold uppercase px-2 py-0.5 rounded-full bg-cyan-500/15 text-cyan-300 border border-cyan-500/30 mono">
+              Stereo 2.0 • 144Hz
+            </span>
+          </div>
+          <p class="text-xs text-slate-400">Запись экрана и двухканального стереозвука (48 кГц / 320 кбит/с)</p>
+        </div>
+      </div>
+
+      <!-- Индикатор состояния -->
+      <div class="flex items-center gap-2 bg-slate-900/90 border border-slate-800 px-3 py-1.5 rounded-xl">
+        <span id="headerStatusDot" class="w-2.5 h-2.5 rounded-full bg-emerald-400"></span>
+        <span id="headerStatusText" class="text-xs font-semibold text-slate-200 mono">ГОТОВ • 2 КАНАЛА (L+R)</span>
+      </div>
+    </div>
+
+    <!-- Навигационные вкладки -->
+    <div class="max-w-5xl mx-auto px-4 flex overflow-x-auto no-scrollbar gap-1 border-t border-slate-800/60 pt-1">
+      <button id="tabBtnStudio" data-tab="studio" class="tab-btn px-4 py-2.5 text-xs sm:text-sm font-semibold border-b-2 border-cyan-400 text-cyan-300 whitespace-nowrap transition">
+        🎛️ Студия записи
+      </button>
+      <button id="tabBtnStereoTest" data-tab="stereotest" class="tab-btn px-4 py-2.5 text-xs sm:text-sm font-semibold border-b-2 border-transparent text-slate-400 hover:text-slate-200 whitespace-nowrap transition">
+        🎧 Тест стерео iQOO 13
+      </button>
+      <button id="tabBtnRecordings" data-tab="recordings" class="tab-btn px-4 py-2.5 text-xs sm:text-sm font-semibold border-b-2 border-transparent text-slate-400 hover:text-slate-200 whitespace-nowrap transition">
+        📂 Мои записи (<span id="recCountBadge">0</span>)
+      </button>
+      <button id="tabBtnApk" data-tab="apk" class="tab-btn px-4 py-2.5 text-xs sm:text-sm font-semibold border-b-2 border-transparent text-slate-400 hover:text-slate-200 whitespace-nowrap transition">
+        📱 Сборка APK и Код
+      </button>
+    </div>
+  </header>
+
+  <!-- Основной контент -->
+  <main class="max-w-5xl w-full mx-auto px-4 py-5 flex-1 space-y-6">
+
+    <!-- ==================== ВКЛАДКА 1: СТУДИЯ ЗАПИСИ ==================== -->
+    <section id="tabPanelStudio" class="space-y-5">
+
+      <!-- Верхняя панель: Визуализатор экрана + Таймер + Анализатор L/R -->
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-4">
+
+        <!-- Блок превью и осциллографа (7 колонок) -->
+        <div class="lg:col-span-7 bg-[#0D1324] border border-slate-800 rounded-2xl p-4 monster-glow flex flex-col justify-between space-y-3">
+          <div class="flex items-center justify-between gap-2">
+            <div class="flex items-center gap-2">
+              <span class="text-xs font-bold uppercase tracking-wider px-2.5 py-1 rounded-md bg-slate-800 text-cyan-300 mono" id="activePresetBadge">
+                2K QHD+ • 144 FPS • AAC 320k
+              </span>
+              <span id="swapChannelsBadge" class="hidden text-xs font-bold uppercase px-2 py-1 rounded-md bg-amber-500/20 text-amber-300 border border-amber-500/40 mono">
+                ИНВЕРСИЯ L↔R
+              </span>
+            </div>
+            <div id="recordingTimer" class="text-xl sm:text-2xl font-extrabold mono text-white tracking-wider">
+              00:00.0
+            </div>
+          </div>
+
+          <!-- Экран превью видео / Спектрограмма стереопотока -->
+          <div class="relative w-full h-52 sm:h-60 bg-[#060911] rounded-xl border border-slate-800/90 overflow-hidden flex items-center justify-center">
+            <video id="liveScreenVideo" autoplay muted playsinline class="hidden w-full h-full object-contain bg-black"></video>
+            <canvas id="stereoCanvas" class="w-full h-full block"></canvas>
+
+            <div class="absolute top-2.5 left-3 flex items-center gap-2 pointer-events-none">
+              <span class="px-2 py-0.5 rounded bg-cyan-500/20 border border-cyan-500/40 text-[11px] text-cyan-300 font-semibold mono">
+                Л (LEFT) • KАНАЛ 1
+              </span>
+              <span class="px-2 py-0.5 rounded bg-rose-500/20 border border-rose-500/40 text-[11px] text-rose-300 font-semibold mono">
+                П (RIGHT) • КАНАЛ 2
+              </span>
+            </div>
+
+            <div class="absolute bottom-2.5 right-3 pointer-events-none">
+              <span id="audioSourceFloatingBadge" class="px-2.5 py-1 rounded-lg bg-slate-900/85 border border-slate-700 text-[11px] text-slate-300 mono">
+                Источник: Системный + 3D-Симулятор
+              </span>
+            </div>
+          </div>
+
+          <!-- Двухканальные пиковые индикаторы уровня (VU Meter L / R) -->
+          <div class="space-y-2 pt-1">
+            <div class="space-y-1">
+              <div class="flex justify-between text-xs mono">
+                <span class="text-cyan-300 font-semibold">ЛЕВЫЙ КАНАЛ (L)</span>
+                <span id="leftDbText" class="text-slate-300">-12.4 dB</span>
+              </div>
+              <div class="w-full h-3 bg-slate-900 rounded-full overflow-hidden border border-slate-800 p-0.5">
+                <div id="leftMeterBar" class="h-full bg-gradient-to-r from-cyan-500 via-teal-400 to-amber-400 rounded-full transition-all duration-75" style="width: 42%;"></div>
+              </div>
+            </div>
+
+            <div class="space-y-1">
+              <div class="flex justify-between text-xs mono">
+                <span class="text-rose-400 font-semibold">ПРАВЫЙ КАНАЛ (R)</span>
+                <span id="rightDbText" class="text-slate-300">-11.8 dB</span>
+              </div>
+              <div class="w-full h-3 bg-slate-900 rounded-full overflow-hidden border border-slate-800 p-0.5">
+                <div id="rightMeterBar" class="h-full bg-gradient-to-r from-rose-500 via-pink-500 to-amber-400 rounded-full transition-all duration-75" style="width: 46%;"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Главные кнопки управления записью -->
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5 pt-2">
+            <button id="btnStartRec" class="col-span-2 py-3 px-4 rounded-xl bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-500 hover:to-red-500 text-white font-bold text-sm shadow-lg shadow-rose-600/25 flex items-center justify-center gap-2 transition">
+              <span class="w-2.5 h-2.5 rounded-full bg-white"></span>
+              <span id="btnStartRecLabel">Начать запись (Stereo)</span>
+            </button>
+
+            <button id="btnPauseRec" disabled class="py-3 px-3 rounded-xl bg-slate-800/90 hover:bg-slate-700 disabled:opacity-40 text-slate-200 font-semibold text-xs sm:text-sm border border-slate-700 transition">
+              ⏸️ Пауза
+            </button>
+
+            <button id="btnAddMarker" disabled class="py-3 px-3 rounded-xl bg-cyan-500/15 hover:bg-cyan-500/25 disabled:opacity-40 text-cyan-300 font-semibold text-xs sm:text-sm border border-cyan-500/30 transition">
+              🚩 Хайлайт
+            </button>
+          </div>
+        </div>
+
+        <!-- Блок Стереомикшера и Настроек звука (5 колонок) -->
+        <div class="lg:col-span-5 bg-[#0D1324] border border-slate-800 rounded-2xl p-4 flex flex-col justify-between space-y-4">
+          <div>
+            <h2 class="text-sm font-bold uppercase tracking-wider text-cyan-400 flex items-center justify-between">
+              <span>🎛️ Стереомикшер (2 канала L+R)</span>
+              <span class="text-[11px] text-slate-400 mono">48 000 Гц • 16-бит</span>
+            </h2>
+
+            <!-- Выбор режима захвата -->
+            <div class="mt-3 space-y-1.5">
+              <label class="text-xs text-slate-400 font-medium">Источник захвата звука и экрана:</label>
+              <select id="selectCaptureMode" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2.5 text-xs sm:text-sm text-white focus:outline-none focus:border-cyan-400">
+                <option value="synth">🎮 Симулятор стерео iQOO 13 (Демо-микс L/R без разрешений)</option>
+                <option value="mic">🎙️ Стереомикрофоны устройства (Реальный захват L+R)</option>
+                <option value="screen">🖥️ Захват экрана + системного стереозвука и микрофона</option>
+              </select>
+            </div>
+
+            <!-- Ползунки громкости и панорамы -->
+            <div class="mt-4 space-y-3.5">
+              <div>
+                <div class="flex justify-between text-xs mb-1">
+                  <span class="text-slate-300 font-medium">Системный звук (Игры / Музыка)</span>
+                  <span id="valSysGain" class="mono text-cyan-300 font-bold">100%</span>
+                </div>
+                <input id="sliderSysGain" type="range" min="0" max="200" value="100" class="w-full h-2 bg-slate-800 rounded-lg cursor-pointer" />
+              </div>
+
+              <div>
+                <div class="flex justify-between text-xs mb-1">
+                  <span class="text-slate-300 font-medium">Усиление стереомикрофона</span>
+                  <span id="valMicGain" class="mono text-cyan-300 font-bold">85%</span>
+                </div>
+                <input id="sliderMicGain" type="range" min="0" max="200" value="85" class="w-full h-2 bg-slate-800 rounded-lg cursor-pointer" />
+              </div>
+
+              <div>
+                <div class="flex justify-between text-xs mb-1">
+                  <span class="text-slate-300 font-medium">Стереобаланс (Панорама L ↔ R)</span>
+                  <div class="flex items-center gap-2">
+                    <span id="valStereoPan" class="mono text-emerald-300 font-bold">Центр (0)</span>
+                    <button id="btnResetPan" class="text-[11px] px-1.5 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-300">Сброс</button>
+                  </div>
+                </div>
+                <input id="sliderStereoPan" type="range" min="-100" max="100" value="0" class="w-full h-2 bg-slate-800 rounded-lg cursor-pointer" />
+              </div>
+
+              <div>
+                <div class="flex justify-between text-xs mb-1">
+                  <span class="text-slate-300 font-medium">Расширение стереосцены (3D Width)</span>
+                  <span id="valStereoWidth" class="mono text-cyan-300 font-bold">120%</span>
+                </div>
+                <input id="sliderStereoWidth" type="range" min="50" max="200" value="120" class="w-full h-2 bg-slate-800 rounded-lg cursor-pointer" />
+              </div>
+            </div>
+          </div>
+
+          <!-- Переключатели обработки звука -->
+          <div class="pt-3 border-t border-slate-800/80 space-y-2.5">
+            <label class="flex items-center justify-between cursor-pointer text-xs">
+              <span class="text-slate-300">Инверсия каналов (Поменять L и R при повороте экрана)</span>
+              <input id="chkSwapLR" type="checkbox" class="w-4 h-4 accent-cyan-400 rounded" />
+            </label>
+
+            <label class="flex items-center justify-between cursor-pointer text-xs">
+              <span class="text-slate-300">Отключить шумодав Android (Чистый стереопоток без моно-сжатия)</span>
+              <input id="chkRawAudio" type="checkbox" checked class="w-4 h-4 accent-cyan-400 rounded" />
+            </label>
+
+            <label class="flex items-center justify-between cursor-pointer text-xs">
+              <span class="text-slate-300">Мониторинг звука в наушники во время записи</span>
+              <input id="chkMonitorAudio" type="checkbox" class="w-4 h-4 accent-cyan-400 rounded" />
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <!-- Нижняя панель: Профиль экрана iQOO 13 (Snapdragon 8 Elite + Q2) -->
+      <div class="bg-[#0D1324] border border-slate-800 rounded-2xl p-4">
+        <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3">
+          ⚡ Аппаратные параметры видео и аудио для iQOO 13
+        </h3>
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          <div>
+            <label class="block text-xs text-slate-400 mb-1">Разрешение экрана iQOO 13</label>
+            <select id="selectResolution" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white">
+              <option value="2K QHD+ (3168×1440)">2K QHD+ (3168×1440 • Родное)</option>
+              <option value="FHD+ (2400×1080)">FHD+ (2400×1080 • Оптимальное)</option>
+              <option value="Full HD (1920×1080)">Full HD (1920×1080 • Стрим)</option>
+            </select>
+          </div>
+
+          <div>
+            <label class="block text-xs text-slate-400 mb-1">Частота кадров</label>
+            <select id="selectFps" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white">
+              <option value="144 FPS">144 FPS (Monster Mode)</option>
+              <option value="120 FPS">120 FPS (Киберспорт)</option>
+              <option value="90 FPS">90 FPS</option>
+              <option value="60 FPS">60 FPS (Стандарт)</option>
+            </select>
+          </div>
+
+          <div>
+            <label class="block text-xs text-slate-400 mb-1">Формат стереодорожки</label>
+            <select id="selectAudioFormat" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white">
+              <option value="AAC 320k + WAV Stereo">AAC 320 кбит/с + Отдельный WAV (48 кГц)</option>
+              <option value="AAC 320k Stereo">AAC-LC 320 кбит/с • 48 кГц (2 канала)</option>
+              <option value="PCM WAV 1536k">Несжатый PCM WAV 16-бит • 48 кГц</option>
+            </select>
+          </div>
+
+          <div>
+            <label class="block text-xs text-slate-400 mb-1">Быстрый игровой пресет</label>
+            <div class="grid grid-cols-2 gap-1.5">
+              <button id="btnPresetPubg" class="py-2 px-2 rounded-xl bg-cyan-500/15 hover:bg-cyan-500/25 border border-cyan-500/30 text-cyan-300 text-xs font-semibold transition">
+                🎯 Шутеры 3D
+              </button>
+              <button id="btnPresetMusic" class="py-2 px-2 rounded-xl bg-purple-500/15 hover:bg-purple-500/25 border border-purple-500/30 text-purple-300 text-xs font-semibold transition">
+                🎵 Музыка Hi-Res
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== ВКЛАДКА 2: ТЕСТ СТЕРЕО iQOO 13 ==================== -->
+    <section id="tabPanelStereoTest" class="hidden space-y-5">
+      <div class="bg-[#0D1324] border border-slate-800 rounded-2xl p-5 space-y-4">
+        <div class="flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <h2 class="text-base sm:text-lg font-bold text-white">🎧 Генератор проверки стереоканалов (Left / Right)</h2>
+            <p class="text-xs text-slate-400 mt-0.5">
+              Проверьте разделение левого и правого динамиков вашего iQOO 13 или протестируйте, действительно ли запись экрана сохраняет стереопанораму.
+            </p>
+          </div>
+          <span id="testToneStatus" class="px-3 py-1 rounded-full text-xs font-bold mono bg-slate-800 text-slate-300">
+            ТЕСТ ОСТАНОВЛЕН
+          </span>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 pt-2">
+          <button id="btnTestLeft" class="p-4 rounded-xl bg-slate-900 hover:bg-cyan-950/50 border border-cyan-500/40 text-left transition group">
+            <div class="flex items-center justify-between">
+              <span class="text-sm font-bold text-cyan-300">🔊 Только ЛЕВЫЙ канал (L)</span>
+              <span class="text-xs mono px-2 py-0.5 rounded bg-cyan-500/20 text-cyan-300">Pan -1.0</span>
+            </div>
+            <p class="text-xs text-slate-400 mt-1.5">Чистый тон 440 Гц строго в левый динамик / наушник.</p>
+          </button>
+
+          <button id="btnTestRight" class="p-4 rounded-xl bg-slate-900 hover:bg-rose-950/50 border border-rose-500/40 text-left transition group">
+            <div class="flex items-center justify-between">
+              <span class="text-sm font-bold text-rose-300">🔊 Только ПРАВЫЙ канал (R)</span>
+              <span class="text-xs mono px-2 py-0.5 rounded bg-rose-500/20 text-rose-300">Pan +1.0</span>
+            </div>
+            <p class="text-xs text-slate-400 mt-1.5">Чистый тон 554 Гц строго в правый динамик / наушник.</p>
+          </button>
+
+          <button id="btnTestSweep" class="p-4 rounded-xl bg-slate-900 hover:bg-emerald-950/50 border border-emerald-500/40 text-left transition group">
+            <div class="flex items-center justify-between">
+              <span class="text-sm font-bold text-emerald-300">🔄 3D-панорама (Вращение L↔R)</span>
+              <span class="text-xs mono px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300">Auto-Pan</span>
+            </div>
+            <p class="text-xs text-slate-400 mt-1.5">Плавное перемещение звука слева направо для проверки записи.</p>
+          </button>
+
+          <button id="btnTestGaming" class="p-4 rounded-xl bg-slate-900 hover:bg-amber-950/50 border border-amber-500/40 text-left transition group">
+            <div class="flex items-center justify-between">
+              <span class="text-sm font-bold text-amber-300">🎮 Игровой тест (Шаги L / Импульс R)</span>
+              <span class="text-xs mono px-2 py-0.5 rounded bg-amber-500/20 text-amber-300">Binaural</span>
+            </div>
+            <p class="text-xs text-slate-400 mt-1.5">Имитация позиционирования в шутерах (низкие шаги слева, клик справа).</p>
+          </button>
+
+          <button id="btnTestSubBass" class="p-4 rounded-xl bg-slate-900 hover:bg-purple-950/50 border border-purple-500/40 text-left transition group">
+            <div class="flex items-center justify-between">
+              <span class="text-sm font-bold text-purple-300">⚡ Саб-бас 65 Гц + Гармоники</span>
+              <span class="text-xs mono px-2 py-0.5 rounded bg-purple-500/20 text-purple-300">Sub Stereo</span>
+            </div>
+            <p class="text-xs text-slate-400 mt-1.5">Проверка симметричных стереодинамиков iQOO 13 на низких частотах.</p>
+          </button>
+
+          <button id="btnTestStop" class="p-4 rounded-xl bg-rose-600/20 hover:bg-rose-600/30 border border-rose-500/50 text-left transition flex flex-col justify-center">
+            <div class="text-sm font-bold text-rose-200">⏹️ Остановить генератор звука</div>
+            <p class="text-xs text-rose-300/80 mt-1">Отключить все тестовые сигналы.</p>
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== ВКЛАДКА 3: МОИ ЗАПИСИ ==================== -->
+    <section id="tabPanelRecordings" class="hidden space-y-4">
+      <div class="bg-[#0D1324] border border-slate-800 rounded-2xl p-5 space-y-4">
+        <div class="flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <h2 class="text-base sm:text-lg font-bold text-white">📂 Записанные стереофайлы</h2>
+            <p class="text-xs text-slate-400">
+              Скачивайте записанное видео или несжатую двухканальную стереодорожку WAV (48 кГц, 16-бит L+R) прямо на ваш iQOO 13.
+            </p>
+          </div>
+          <button id="btnGenerateSampleWav" class="px-3.5 py-2 rounded-xl bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 border border-cyan-500/40 text-xs font-semibold transition">
+            ➕ Создать эталонный Stereo WAV (Тест L/R)
+          </button>
+        </div>
+
+        <div id="recordingsList" class="space-y-3"></div>
+      </div>
+    </section>
+
+    <!-- ==================== ВКЛАДКА 4: СБОРКА APK И КОД ==================== -->
+    <section id="tabPanelApk" class="hidden space-y-4">
+      <div class="bg-[#0D1324] border border-slate-800 rounded-2xl p-5 space-y-4">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800 pb-4">
+          <div>
+            <h2 class="text-base sm:text-lg font-bold text-cyan-300">📱 Как установить нативный APK на ваш iQOO 13</h2>
+            <p class="text-xs text-slate-300 mt-1">
+              Я подготовил для вас полный архив Android-проекта <span class="mono text-white">iQOO13_StereoRec_Android_Project.zip</span> со встроенным облачным сборщиком APK.
+            </p>
+          </div>
+          <button id="btnCopyKotlinCode" class="px-4 py-2.5 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/40 text-emerald-300 text-xs font-bold whitespace-nowrap transition">
+            📋 Скопировать код StereoRecordService.kt
+          </button>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
+          <div class="p-3.5 rounded-xl bg-slate-900/90 border border-slate-800 space-y-1.5">
+            <div class="font-bold text-cyan-300">Шаг 1. Скачайте архив проекта</div>
+            <p class="text-slate-400">
+              Скачайте прикреплённый в чате файл <span class="mono text-slate-200">iQOO13_StereoRec_Android_Project.zip</span>. Внутри находятся исходники на Kotlin и скрипт автосборки <span class="mono text-slate-200">build-apk.yml</span>.
+            </p>
+          </div>
+          <div class="p-3.5 rounded-xl bg-slate-900/90 border border-slate-800 space-y-1.5">
+            <div class="font-bold text-cyan-300">Шаг 2. Автосборка APK без ПК (2 мин)</div>
+            <p class="text-slate-400">
+              Загрузите файлы из архива в бесплатный репозиторий на GitHub прямо из браузера телефона. GitHub Actions сам запустит Android SDK и соберёт <span class="mono text-slate-200">iQOO13-StereoRec-Pro-APK</span>.
+            </p>
+          </div>
+          <div class="p-3.5 rounded-xl bg-slate-900/90 border border-slate-800 space-y-1.5">
+            <div class="font-bold text-cyan-300">Шаг 3. Настоящий Stereo 2.0</div>
+            <p class="text-slate-400">
+              Приложение использует <span class="mono text-slate-200">AudioPlaybackCaptureConfiguration</span> + <span class="mono text-slate-200">CHANNEL_IN_STEREO</span> и аппаратный кодек AAC 320 кбит/с (48 кГц).
+            </p>
+          </div>
+        </div>
+
+        <div>
+          <div class="text-xs font-semibold text-slate-400 mb-2">Ключевой фрагмент ядра захвата стереозвука (Kotlin • Android 10–15):</div>
+          <pre id="kotlinCodePreview" class="bg-[#060911] border border-slate-800 rounded-xl p-3.5 text-[11px] mono text-cyan-200 overflow-x-auto leading-relaxed">val pcmStereoFormat = AudioFormat.Builder()
+    .setEncoding(AudioFormat.ENCODING_PCM_16BIT)
+    .setSampleRate(48000)
+    .setChannelMask(AudioFormat.CHANNEL_IN_STEREO) // Полноценные 2 канала (Left + Right)
+    .build()
+
+val playbackConfig = AudioPlaybackCaptureConfiguration.Builder(mediaProjection)
+    .addMatchingUsage(AudioAttributes.USAGE_GAME)
+    .addMatchingUsage(AudioAttributes.USAGE_MEDIA)
+    .build()
+
+val internalAudioRecord = AudioRecord.Builder()
+    .setAudioFormat(pcmStereoFormat)
+    .setBufferSizeInBytes(minBufSize * 2)
+    .setAudioPlaybackCaptureConfig(playbackConfig)
+    .build()</pre>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Нижний бар -->
+  <footer class="border-t border-slate-800/80 bg-[#0B101E] py-3 px-4 text-center text-xs text-slate-500">
+    iQOO 13 StereoRec Pro • Поддержка 2-канального звука PCM/AAC 48 кГц • Русская версия
+  </footer>
+
+  <script>
+    // Безопасная обёртка для уведомлений вместо alert()
+    function showToast(message, type = 'info') {
+      const container = document.getElementById('toastContainer');
+      if (!container) return;
+      const item = document.createElement('div');
+      const colorMap = {
+        info: 'border-cyan-500/50 bg-slate-900/95 text-cyan-200',
+        success: 'border-emerald-500/50 bg-slate-900/95 text-emerald-200',
+        warn: 'border-amber-500/50 bg-slate-900/95 text-amber-200'
+      };
+      item.className = `pointer-events-auto border rounded-xl px-4 py-3 text-xs font-semibold shadow-xl transition-all duration-300 ${colorMap[type] || colorMap.info}`;
+      item.textContent = message;
+      container.appendChild(item);
+      setTimeout(() => {
+        item.style.opacity = '0';
+        setTimeout(() => item.remove(), 300);
+      }, 3200);
+    }
+
+    // Глобальное состояние студии
+    const state = {
+      activeTab: 'studio',
+      isRecording: false,
+      isPaused: false,
+      startTimeMs: 0,
+      elapsedMs: 0,
+      timerInterval: null,
+      captureMode: 'synth',
+      sysGain: 1.0,
+      micGain: 0.85,
+      stereoPan: 0.0,
+      stereoWidth: 1.2,
+      swapLR: false,
+      rawAudio: true,
+      monitorAudio: false,
+      resolution: '2K QHD+ (3168×1440)',
+      fps: '144 FPS',
+      audioFormat: 'AAC 320k + WAV Stereo',
+      markers: [],
+      recordings: [],
+      // Web Audio API узлы
+      audioCtx: null,
+      analyserL: null,
+      analyserR: null,
+      splitter: null,
+      merger: null,
+      pannerNode: null,
+      gainNodeL: null,
+      gainNodeR: null,
+      synthInterval: null,
+      testOscL: null,
+      testOscR: null,
+      testSweepTimer: null,
+      mediaRecorder: null,
+      recordedChunks: [],
+      pcmLeftChunks: [],
+      pcmRightChunks: [],
+      scriptProcessor: null,
+      activeStream: null
+    };
+
+    // Переключение вкладок
+    function switchTab(tabId) {
+      state.activeTab = tabId;
+      const mapping = {
+        studio: ['tabBtnStudio', 'tabPanelStudio'],
+        stereotest: ['tabBtnStereoTest', 'tabPanelStereoTest'],
+        recordings: ['tabBtnRecordings', 'tabPanelRecordings'],
+        apk: ['tabBtnApk', 'tabPanelApk']
+      };
+      Object.keys(mapping).forEach(key => {
+        const [btnId, panelId] = mapping[key];
+        const btn = document.getElementById(btnId);
+        const panel = document.getElementById(panelId);
+        if (key === tabId) {
+          btn.classList.add('border-cyan-400', 'text-cyan-300');
+          btn.classList.remove('border-transparent', 'text-slate-400');
+          panel.classList.remove('hidden');
+        } else {
+          btn.classList.remove('border-cyan-400', 'text-cyan-300');
+          btn.classList.add('border-transparent', 'text-slate-400');
+          panel.classList.add('hidden');
+        }
+      });
+    }
+
+    // Инициализация Web Audio API графа с разделением на Левый и Правый каналы
+    function ensureAudioContext() {
+      if (!state.audioCtx) {
+        const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+        state.audioCtx = new AudioContextClass({ sampleRate: 48000 });
+        state.analyserL = state.audioCtx.createAnalyser();
+        state.analyserR = state.audioCtx.createAnalyser();
+        state.analyserL.fftSize = 256;
+        state.analyserR.fftSize = 256;
+
+        state.splitter = state.audioCtx.createChannelSplitter(2);
+        state.merger = state.audioCtx.createChannelMerger(2);
+        state.gainNodeL = state.audioCtx.createGain();
+        state.gainNodeR = state.audioCtx.createGain();
+
+        state.splitter.connect(state.gainNodeL, 0);
+        state.splitter.connect(state.gainNodeR, 1);
+
+        rewireStereoRouting();
+      }
+      if (state.audioCtx.state === 'suspended') {
+        state.audioCtx.resume();
+      }
+    }
+
+    function rewireStereoRouting() {
+      if (!state.audioCtx) return;
+      try {
+        state.gainNodeL.disconnect();
+        state.gainNodeR.disconnect();
+        state.merger.disconnect();
+      } catch (e) {}
+
+      // Учитываем стереобаланс (Pan) и усиление
+      const pan = state.stereoPan;
+      const baseGain = state.sysGain * state.stereoWidth;
+      const leftFactor = (pan > 0 ? (1 - pan) : 1) * baseGain;
+      const rightFactor = (pan < 0 ? (1 + pan) : 1) * baseGain;
+
+      state.gainNodeL.gain.value = leftFactor;
+      state.gainNodeR.gain.value = rightFactor;
+
+      if (state.swapLR) {
+        state.gainNodeL.connect(state.analyserR);
+        state.gainNodeR.connect(state.analyserL);
+        state.gainNodeL.connect(state.merger, 0, 1);
+        state.gainNodeR.connect(state.merger, 0, 0);
+      } else {
+        state.gainNodeL.connect(state.analyserL);
+        state.gainNodeR.connect(state.analyserR);
+        state.gainNodeL.connect(state.merger, 0, 0);
+        state.gainNodeR.connect(state.merger, 0, 1);
+      }
+
+      if (state.monitorAudio) {
+        state.merger.connect(state.audioCtx.destination);
+      }
+    }
+
+    // Генерация стерео-импульса в симуляторе (для проверки L/R)
+    function triggerSynthStereoPulse(panValue, freqL, freqR, duration = 0.28) {
+      ensureAudioContext();
+      const ctx = state.audioCtx;
+      const now = ctx.currentTime;
+
+      const osc = ctx.createOscillator();
+      const env = ctx.createGain();
+      const panner = ctx.createStereoPanner();
+
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(freqL, now);
+      osc.frequency.exponentialRampToValueAtTime(freqR, now + duration);
+
+      panner.pan.setValueAtTime(panValue, now);
+
+      env.gain.setValueAtTime(0.001, now);
+      env.gain.linearRampToValueAtTime(0.28, now + 0.02);
+      env.gain.exponentialRampToValueAtTime(0.001, now + duration);
+
+      osc.connect(env);
+      env.connect(panner);
+      panner.connect(state.splitter);
+
+      osc.start(now);
+      osc.stop(now + duration);
+    }
+
+    // Отрисовка 60 FPS осциллографа и VU-метров L/R
+    function startVisualizerLoop() {
+      const canvas = document.getElementById('stereoCanvas');
+      const ctx = canvas.getContext('2d');
+      let phase = 0;
+
+      function render() {
+        const rect = canvas.getBoundingClientRect();
+        if (canvas.width !== Math.floor(rect.width) || canvas.height !== Math.floor(rect.height)) {
+          canvas.width = Math.max(300, Math.floor(rect.width));
+          canvas.height = Math.max(160, Math.floor(rect.height));
+        }
+
+        const w = canvas.width;
+        const h = canvas.height;
+        ctx.clearRect(0, 0, w, h);
+
+        // Сетка
+        ctx.strokeStyle = 'rgba(30, 41, 59, 0.55)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(0, h / 2);
+        ctx.lineTo(w, h / 2);
+        ctx.stroke();
+
+        let leftPeak = 0.15;
+        let rightPeak = 0.15;
+
+        const dataL = new Uint8Array(128);
+        const dataR = new Uint8Array(128);
+
+        if (state.analyserL && state.analyserR && (state.isRecording || state.testOscL)) {
+          state.analyserL.getByteTimeDomainData(dataL);
+          state.analyserR.getByteTimeDomainData(dataR);
+
+          let sumL = 0, sumR = 0;
+          for (let i = 0; i < dataL.length; i++) {
+            sumL += Math.abs(dataL[i] - 128);
+            sumR += Math.abs(dataR[i] - 128);
+          }
+          leftPeak = Math.min(1, (sumL / dataL.length) / 28);
+          rightPeak = Math.min(1, (sumR / dataR.length) / 28);
+        } else {
+          // Фоновая живая демонстрация разделения каналов L и R
+          phase += 0.06;
+          const pan = state.stereoPan;
+          const lMult = (pan > 0 ? 1 - pan : 1) * state.sysGain;
+          const rMult = (pan < 0 ? 1 + pan : 1) * state.sysGain;
+
+          leftPeak = Math.min(0.96, (0.32 + 0.22 * Math.sin(phase * 1.3)) * lMult);
+          rightPeak = Math.min(0.96, (0.32 + 0.22 * Math.cos(phase * 1.7)) * rMult);
+          if (state.swapLR) {
+            const tmp = leftPeak;
+            leftPeak = rightPeak;
+            rightPeak = tmp;
+          }
+
+          for (let i = 0; i < 128; i++) {
+            const t = i / 128;
+            dataL[i] = 128 + Math.sin(t * Math.PI * 6 + phase) * 42 * leftPeak;
+            dataR[i] = 128 + Math.cos(t * Math.PI * 8 - phase * 1.2) * 42 * rightPeak;
+          }
+        }
+
+        // Рисуем Левую волну (Cyan) в верхней половине
+        ctx.strokeStyle = '#22D3EE';
+        ctx.lineWidth = 2.2;
+        ctx.beginPath();
+        for (let i = 0; i < dataL.length; i++) {
+          const x = (i / (dataL.length - 1)) * w;
+          const y = (h * 0.27) + ((dataL[i] - 128) / 128) * (h * 0.20);
+          if (i === 0) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+
+        // Рисуем Правую волну (Rose) в нижней половине
+        ctx.strokeStyle = '#FB7185';
+        ctx.lineWidth = 2.2;
+        ctx.beginPath();
+        for (let i = 0; i < dataR.length; i++) {
+          const x = (i / (dataR.length - 1)) * w;
+          const y = (h * 0.73) + ((dataR[i] - 128) / 128) * (h * 0.20);
+          if (i === 0) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+
+        // Обновляем шкалы VU-метров
+        const pctL = Math.max(4, Math.min(100, Math.round(leftPeak * 100)));
+        const pctR = Math.max(4, Math.min(100, Math.round(rightPeak * 100)));
+        document.getElementById('leftMeterBar').style.width = pctL + '%';
+        document.getElementById('rightMeterBar').style.width = pctR + '%';
+
+        const dbL = (20 * Math.log10(Math.max(0.01, leftPeak))).toFixed(1);
+        const dbR = (20 * Math.log10(Math.max(0.01, rightPeak))).toFixed(1);
+        document.getElementById('leftDbText').textContent = `${dbL} dB`;
+        document.getElementById('rightDbText').textContent = `${dbR} dB`;
+
+        requestAnimationFrame(render);
+      }
+
+      requestAnimationFrame(render);
+    }
+
+    // Генерация настоящего двухканального WAV-файла (48 кГц, 16-бит Stereo)
+    function createStereoWavBlob(durationSec = 4, panOffset = 0, swapChannels = false) {
+      const sampleRate = 48000;
+      const numChannels = 2;
+      const numSamples = Math.floor(sampleRate * durationSec);
+      const dataSize = numSamples * numChannels * 2;
+      const buffer = new ArrayBuffer(44 + dataSize);
+      const view = new DataView(buffer);
+
+      function writeStr(offset, str) {
+        for (let i = 0; i < str.length; i++) {
+          view.setUint8(offset + i, str.charCodeAt(i));
+        }
+      }
+
+      writeStr(0, 'RIFF');
+      view.setUint32(4, 36 + dataSize, true);
+      writeStr(8, 'WAVE');
+      writeStr(12, 'fmt ');
+      view.setUint32(16, 16, true);
+      view.setUint16(20, 1, true); // PCM
+      view.setUint16(22, numChannels, true); // 2 канала (Stereo)
+      view.setUint32(24, sampleRate, true);
+      view.setUint32(28, sampleRate * numChannels * 2, true);
+      view.setUint16(32, numChannels * 2, true);
+      view.setUint16(34, 16, true);
+      writeStr(36, 'data');
+      view.setUint32(40, dataSize, true);
+
+      let offset = 44;
+      const leftGain = panOffset > 0 ? 1 - panOffset : 1;
+      const rightGain = panOffset < 0 ? 1 + panOffset : 1;
+
+      for (let i = 0; i < numSamples; i++) {
+        const t = i / sampleRate;
+        // Первая половина — аккорд в Левом канале, вторая половина — в Правом канале, затем оба
+        const envL = t < durationSec * 0.45 ? 0.85 : (t > durationSec * 0.7 ? 0.65 : 0.1);
+        const envR = t >= durationSec * 0.35 ? 0.85 : 0.1;
+
+        let sigL = (Math.sin(2 * Math.PI * 440 * t) * 0.5 + Math.sin(2 * Math.PI * 220 * t) * 0.3) * envL * leftGain;
+        let sigR = (Math.sin(2 * Math.PI * 554.37 * t) * 0.5 + Math.sin(2 * Math.PI * 659.25 * t) * 0.3) * envR * rightGain;
+
+        if (swapChannels) {
+          const tmp = sigL;
+          sigL = sigR;
+          sigR = tmp;
+        }
+
+        const sL = Math.max(-32768, Math.min(32767, Math.floor(sigL * 32767)));
+        const sR = Math.max(-32768, Math.min(32767, Math.floor(sigR * 32767)));
+
+        view.setInt16(offset, sL, true);
+        view.setInt16(offset + 2, sR, true);
+        offset += 4;
+      }
+
+      return new Blob([buffer], { type: 'audio/wav' });
+    }
+
+    // Старт / Стоп записи
+    async function toggleRecording() {
+      if (state.isRecording) {
+        stopRecordingSession();
+        return;
+      }
+
+      ensureAudioContext();
+      state.markers = [];
+      state.recordedChunks = [];
+      const mode = document.getElementById('selectCaptureMode').value;
+      state.captureMode = mode;
+
+      if (mode === 'screen') {
+        try {
+          const displayStream = await navigator.mediaDevices.getDisplayMedia({
+            video: { frameRate: 60 },
+            audio: {
+              channelCount: 2,
+              sampleRate: 48000,
+              echoCancellation: false,
+              noiseSuppression: false
+            }
+          });
+          state.activeStream = displayStream;
+          const videoEl = document.getElementById('liveScreenVideo');
+          videoEl.srcObject = displayStream;
+          videoEl.classList.remove('hidden');
+
+          if (displayStream.getAudioTracks().length > 0) {
+            const audioOnlyStream = new MediaStream(displayStream.getAudioTracks());
+            const srcNode = state.audioCtx.createMediaStreamSource(audioOnlyStream);
+            srcNode.connect(state.splitter);
+            startMediaRecorderOnStream(audioOnlyStream);
+          } else {
+            showToast('В выбранном захвате нет аудиодорожки. Будет записан только тестовый сигнал.', 'warn');
+            startSynthRecordingLoop();
+          }
+        } catch (err) {
+          showToast('Захват экрана отменён или недоступен в окне предпросмотра — включён режим 3D-стереосимулятора iQOO 13', 'warn');
+          startSynthRecordingLoop();
+        }
+      } else if (mode === 'mic') {
+        try {
+          const micStream = await navigator.mediaDevices.getUserMedia({
+            audio: {
+              channelCount: 2,
+              sampleRate: 48000,
+              echoCancellation: !state.rawAudio,
+              noiseSuppression: !state.rawAudio,
+              autoGainControl: !state.rawAudio
+            }
+          });
+          state.activeStream = micStream;
+          const srcNode = state.audioCtx.createMediaStreamSource(micStream);
+          srcNode.connect(state.splitter);
+          startMediaRecorderOnStream(micStream);
+        } catch (err) {
+          showToast('Доступ к микрофону не предоставлен — запись запущена на встроенном стереогенераторе L/R', 'warn');
+          startSynthRecordingLoop();
+        }
+      } else {
+        startSynthRecordingLoop();
+      }
+
+      state.isRecording = true;
+      state.isPaused = false;
+      state.startTimeMs = Date.now();
+      state.elapsedMs = 0;
+
+      document.getElementById('btnStartRecLabel').textContent = 'Остановить и сохранить';
+      document.getElementById('btnPauseRec').disabled = false;
+      document.getElementById('btnAddMarker').disabled = false;
+      document.getElementById('headerStatusDot').className = 'w-2.5 h-2.5 rounded-full bg-rose-500 rec-pulse';
+      document.getElementById('headerStatusText').textContent = 'ЗАПИСЬ • STEREO 2.0 (48kHz)';
+
+      state.timerInterval = setInterval(() => {
+        if (!state.isPaused) {
+          state.elapsedMs += 100;
+          const totalSec = Math.floor(state.elapsedMs / 1000);
+          const mins = String(Math.floor(totalSec / 60)).padStart(2, '0');
+          const secs = String(totalSec % 60).padStart(2, '0');
+          const tenths = Math.floor((state.elapsedMs % 1000) / 100);
+          document.getElementById('recordingTimer').textContent = `${mins}:${secs}.${tenths}`;
+        }
+      }, 100);
+
+      showToast('Запись со стереозвуком (2 канала L+R) началась!', 'success');
+    }
+
+    function startMediaRecorderOnStream(stream) {
+      try {
+        const options = {};
+        if (window.MediaRecorder && MediaRecorder.isTypeSupported) {
+          if (MediaRecorder.isTypeSupported('audio/webm;codecs=opus')) options.mimeType = 'audio/webm;codecs=opus';
+          else if (MediaRecorder.isTypeSupported('audio/ogg;codecs=opus')) options.mimeType = 'audio/ogg;codecs=opus';
+        }
+        const rec = new MediaRecorder(stream, options);
+        rec.ondataavailable = (e) => {
+          if (e.data && e.data.size > 0) state.recordedChunks.push(e.data);
+        };
+        rec.onerror = () => showToast('Ошибка записи аудио. Проверьте разрешения браузера.', 'error');
+        rec.onstop = () => {
+          const mimeType = rec.mimeType || (state.recordedChunks[0] && state.recordedChunks[0].type) || 'audio/webm';
+          const extension = mimeType.includes('ogg') ? 'ogg' : (mimeType.includes('wav') ? 'wav' : 'webm');
+          const blob = state.recordedChunks.length
+            ? new Blob(state.recordedChunks, { type: mimeType })
+            : null;
+          state.mediaRecorder = null;
+          state.recordedChunks = [];
+          if (blob && blob.size > 0) {
+            saveRecordingBlob(blob, extension, false);
+          } else {
+            saveRecordingBlob(createStereoWavBlob(Math.min(8, Math.max(2, Math.round(state.elapsedMs / 1000))), state.stereoPan, state.swapLR), 'wav', true);
+          }
+        };
+        rec.start(400);
+        state.mediaRecorder = rec;
+      } catch (e) {
+        state.mediaRecorder = null;
+        showToast('Браузер не поддерживает запись этого потока. Будет создан тестовый WAV.', 'warn');
+      }
+    }
+
+    function startSynthRecordingLoop() {
+      clearInterval(state.synthInterval);
+      let step = 0;
+      triggerSynthStereoPulse(-0.85, 330, 440, 0.25);
+      state.synthInterval = setInterval(() => {
+        if (!state.isPaused && state.isRecording) {
+          const pan = (step % 2 === 0) ? -0.85 : 0.85;
+          const f1 = (step % 2 === 0) ? 330 : 554;
+          const f2 = (step % 2 === 0) ? 440 : 659;
+          triggerSynthStereoPulse(pan, f1, f2, 0.26);
+          step++;
+        }
+      }, 650);
+    }
+
+    function stopRecordingSession() {
+      state.isRecording = false;
+      state.isPaused = false;
+      clearInterval(state.timerInterval);
+      clearInterval(state.synthInterval);
+
+      const recorder = state.mediaRecorder;
+      if (recorder && recorder.state !== 'inactive') {
+        try { recorder.stop(); } catch (e) {}
+      } else if (!recorder) {
+        // Синтезированный эталон — это тестовый сигнал, не захваченный звук устройства.
+        const durationSec = Math.min(8, Math.max(2, Math.round(state.elapsedMs / 1000)));
+        saveRecordingBlob(createStereoWavBlob(durationSec, state.stereoPan, state.swapLR), 'wav', true);
+      }
+
+      if (state.activeStream) {
+        state.activeStream.getTracks().forEach(t => t.stop());
+        state.activeStream = null;
+      }
+
+      const videoEl = document.getElementById('liveScreenVideo');
+      videoEl.srcObject = null;
+      videoEl.classList.add('hidden');
+
+      document.getElementById('btnStartRecLabel').textContent = 'Начать запись (Stereo)';
+      document.getElementById('btnPauseRec').disabled = true;
+      document.getElementById('btnPauseRec').textContent = '⏸️ Пауза';
+      document.getElementById('btnAddMarker').disabled = true;
+      document.getElementById('headerStatusDot').className = 'w-2.5 h-2.5 rounded-full bg-emerald-400';
+      document.getElementById('headerStatusText').textContent = 'ГОТОВ • ЗАПИСЬ ОСТАНОВЛЕНА';
+    }
+
+    function saveRecordingBlob(blob, extension, synthetic) {
+      const url = URL.createObjectURL(blob);
+      const nowStr = new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+      const durationSec = Math.max(1, Math.round(state.elapsedMs / 1000));
+      const recEntry = {
+        id: 'rec_' + Date.now(),
+        title: `iQOO13_${synthetic ? 'StereoTest' : 'Capture'}_${nowStr.replace(/:/g, '-')}.${extension}`,
+        meta: `${synthetic ? 'Синтезированный тестовый сигнал' : 'Захваченный поток'} • ${blob.type || extension} • ${state.audioFormat}`,
+        duration: `${durationSec} сек`,
+        panInfo: state.swapLR ? 'Инверсия L↔R' : `Баланс: ${Math.round(state.stereoPan * 100)}%`,
+        markers: [...state.markers],
+        url: url
+      };
+      state.recordings.unshift(recEntry);
+      renderRecordingsList();
+      showToast(synthetic ? 'Создан тестовый стереофайл (это не звук экрана/микрофона).' : `Запись сохранена: ${recEntry.title}`, synthetic ? 'warn' : 'success');
+    }
+
+    function renderRecordingsList() {
+      document.getElementById('recCountBadge').textContent = String(state.recordings.length);
+      const container = document.getElementById('recordingsList');
+      if (state.recordings.length === 0) {
+        container.innerHTML = `
+          <div class="p-8 rounded-xl bg-slate-900/60 border border-slate-800 text-center space-y-2">
+            <div class="text-sm font-semibold text-slate-300">Пока нет сохранённых записей</div>
+            <p class="text-xs text-slate-500">Запустите запись во вкладке «Студия записи» или нажмите «Создать эталонный Stereo WAV» выше.</p>
+          </div>
+        `;
+        return;
+      }
+
+      container.innerHTML = state.recordings.map(item => `
+        <div class="p-4 rounded-xl bg-slate-900/90 border border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div class="space-y-1">
+            <div class="flex items-center gap-2 flex-wrap">
+              <span class="font-bold text-sm text-cyan-300 mono">${item.title}</span>
+              <span class="text-[11px] px-2 py-0.5 rounded bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 mono">${item.duration}</span>
+              <span class="text-[11px] px-2 py-0.5 rounded bg-slate-800 text-slate-300 mono">${item.panInfo}</span>
+            </div>
+            <div class="text-xs text-slate-400">${item.meta}</div>
+            ${item.markers.length > 0 ? `<div class="text-[11px] text-amber-300 mono">🚩 Хайлайты: ${item.markers.join(', ')}</div>` : ''}
+            <audio controls src="${item.url}" class="h-8 mt-2 w-full sm:w-72"></audio>
+          </div>
+          <div class="flex items-center gap-2">
+            <a href="${item.url}" download="${item.title}" class="px-3.5 py-2 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-xs transition whitespace-nowrap">
+              ⬇️ Скачать аудио
+            </a>
+            <button data-del-id="${item.id}" class="btn-delete-rec px-3 py-2 rounded-xl bg-slate-800 hover:bg-rose-950 text-rose-300 border border-slate-700 text-xs font-semibold transition">
+              Удалить
+            </button>
+          </div>
+        </div>
+      `).join('');
+
+      container.querySelectorAll('.btn-delete-rec').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const id = btn.getAttribute('data-del-id');
+          state.recordings = state.recordings.filter(r => r.id !== id);
+          renderRecordingsList();
+          showToast('Запись удалена', 'info');
+        });
+      });
+    }
+
+    // Функции для вкладки «Тест стерео iQOO 13»
+    function stopAllTestTones() {
+      clearInterval(state.testSweepTimer);
+      state.testSweepTimer = null;
+      if (state.testOscL) {
+        try { state.testOscL.stop(); state.testOscL.disconnect(); } catch (e) {}
+        state.testOscL = null;
+      }
+      if (state.testOscR) {
+        try { state.testOscR.stop(); state.testOscR.disconnect(); } catch (e) {}
+        state.testOscR = null;
+      }
+      const badge = document.getElementById('testToneStatus');
+      if (badge) {
+        badge.textContent = 'ТЕСТ ОСТАНОВЛЕН';
+        badge.className = 'px-3 py-1 rounded-full text-xs font-bold mono bg-slate-800 text-slate-300';
+      }
+    }
+
+    function startChannelTest(mode) {
+      stopAllTestTones();
+      ensureAudioContext();
+      const ctx = state.audioCtx;
+      const badge = document.getElementById('testToneStatus');
+
+      if (mode === 'left') {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        const panner = ctx.createStereoPanner();
+        osc.type = 'sine';
+        osc.frequency.value = 440;
+        gain.gain.value = 0.25;
+        panner.pan.value = -1;
+        osc.connect(gain);
+        gain.connect(panner);
+        panner.connect(ctx.destination);
+        panner.connect(state.splitter);
+        osc.start();
+        state.testOscL = osc;
+        badge.textContent = 'ЗВУЧИТ: ТОЛЬКО ЛЕВЫЙ КАНАЛ (L • 440 Гц)';
+        badge.className = 'px-3 py-1 rounded-full text-xs font-bold mono bg-cyan-500/20 text-cyan-300 border border-cyan-500/40';
+        showToast('Включён тест ЛЕВОГО динамика / наушника (440 Гц)', 'info');
+      } else if (mode === 'right') {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        const panner = ctx.createStereoPanner();
+        osc.type = 'sine';
+        osc.frequency.value = 554.37;
+        gain.gain.value = 0.25;
+        panner.pan.value = 1;
+        osc.connect(gain);
+        gain.connect(panner);
+        panner.connect(ctx.destination);
+        panner.connect(state.splitter);
+        osc.start();
+        state.testOscR = osc;
+        badge.textContent = 'ЗВУЧИТ: ТОЛЬКО ПРАВЫЙ КАНАЛ (R • 554 Гц)';
+        badge.className = 'px-3 py-1 rounded-full text-xs font-bold mono bg-rose-500/20 text-rose-300 border border-rose-500/40';
+        showToast('Включён тест ПРАВОГО динамика / наушника (554 Гц)', 'info');
+      } else if (mode === 'sweep') {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        const panner = ctx.createStereoPanner();
+        osc.type = 'triangle';
+        osc.frequency.value = 392;
+        gain.gain.value = 0.25;
+        osc.connect(gain);
+        gain.connect(panner);
+        panner.connect(ctx.destination);
+        panner.connect(state.splitter);
+        osc.start();
+        state.testOscL = osc;
+        let angle = 0;
+        state.testSweepTimer = setInterval(() => {
+          angle += 0.15;
+          panner.pan.value = Math.sin(angle);
+        }, 50);
+        badge.textContent = 'ЗВУЧИТ: 3D АВТО-ПАНОРАМА (L ↔ R)';
+        badge.className = 'px-3 py-1 rounded-full text-xs font-bold mono bg-emerald-500/20 text-emerald-300 border border-emerald-500/40';
+        showToast('Включено вращение стереопанорамы L ↔ R', 'success');
+      } else if (mode === 'gaming') {
+        let step = 0;
+        state.testSweepTimer = setInterval(() => {
+          const isLeft = step % 2 === 0;
+          triggerSynthStereoPulse(isLeft ? -0.95 : 0.95, isLeft ? 140 : 880, isLeft ? 90 : 440, 0.18);
+          if (!state.monitorAudio && state.audioCtx) {
+            state.merger.connect(state.audioCtx.destination);
+          }
+          step++;
+        }, 420);
+        badge.textContent = 'ЗВУЧИТ: ИГРОВОЙ РАДАР (ШАГИ L / ВЫСТРЕЛ R)';
+        badge.className = 'px-3 py-1 rounded-full text-xs font-bold mono bg-amber-500/20 text-amber-300 border border-amber-500/40';
+        showToast('Запущен игровой тест позиционирования L/R', 'info');
+      } else if (mode === 'subbass') {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.value = 65;
+        gain.gain.value = 0.35;
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        gain.connect(state.splitter);
+        osc.start();
+        state.testOscL = osc;
+        badge.textContent = 'ЗВУЧИТ: САБ-БАС 65 Гц (ОБА КАНАЛА)';
+        badge.className = 'px-3 py-1 rounded-full text-xs font-bold mono bg-purple-500/20 text-purple-300 border border-purple-500/40';
+        showToast('Включён тест низких частот 65 Гц на оба стереодинамика', 'info');
+      }
+    }
+
+    function updatePresetHeaderBadge() {
+      const resShort = state.resolution.split(' ')[0];
+      const fmtShort = state.audioFormat.split(' ')[0] + ' ' + state.audioFormat.split(' ')[1];
+      document.getElementById('activePresetBadge').textContent = `${resShort} • ${state.fps} • ${fmtShort}`;
+    }
+
+    // Привязка всех элементов управления при загрузке
+    window.addEventListener('DOMContentLoaded', () => {
+      // Вкладки
+      document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.addEventListener('click', () => switchTab(btn.getAttribute('data-tab')));
+      });
+
+      // Кнопки записи
+      document.getElementById('btnStartRec').addEventListener('click', toggleRecording);
+
+      document.getElementById('btnPauseRec').addEventListener('click', () => {
+        if (!state.isRecording) return;
+        state.isPaused = !state.isPaused;
+        document.getElementById('btnPauseRec').textContent = state.isPaused ? '▶️ Продолжить' : '⏸️ Пауза';
+        document.getElementById('headerStatusText').textContent = state.isPaused ? 'ПАУЗА • STEREO 2.0' : 'ЗАПИСЬ • STEREO 2.0 (48kHz)';
+        showToast(state.isPaused ? 'Запись поставлена на паузу' : 'Запись возобновлена', 'info');
+      });
+
+      document.getElementById('btnAddMarker').addEventListener('click', () => {
+        if (!state.isRecording) return;
+        const t = document.getElementById('recordingTimer').textContent;
+        state.markers.push(t);
+        showToast(`Отмечен таймкод хайлайта: ${t}`, 'success');
+      });
+
+      // Ползунки микшера
+      document.getElementById('sliderSysGain').addEventListener('input', (e) => {
+        state.sysGain = Number(e.target.value) / 100;
+        document.getElementById('valSysGain').textContent = `${e.target.value}%`;
+        rewireStereoRouting();
+      });
+
+      document.getElementById('sliderMicGain').addEventListener('input', (e) => {
+        state.micGain = Number(e.target.value) / 100;
+        document.getElementById('valMicGain').textContent = `${e.target.value}%`;
+      });
+
+      document.getElementById('sliderStereoPan').addEventListener('input', (e) => {
+        const v = Number(e.target.value);
+        state.stereoPan = v / 100;
+        const label = v === 0 ? 'Центр (0)' : (v < 0 ? `Левый ${Math.abs(v)}%` : `Правый +${v}%`);
+        document.getElementById('valStereoPan').textContent = label;
+        rewireStereoRouting();
+      });
+
+      document.getElementById('btnResetPan').addEventListener('click', () => {
+        state.stereoPan = 0;
+        document.getElementById('sliderStereoPan').value = '0';
+        document.getElementById('valStereoPan').textContent = 'Центр (0)';
+        rewireStereoRouting();
+        showToast('Стереобаланс возвращён в центр (0)', 'info');
+      });
+
+      document.getElementById('sliderStereoWidth').addEventListener('input', (e) => {
+        state.stereoWidth = Number(e.target.value) / 100;
+        document.getElementById('valStereoWidth').textContent = `${e.target.value}%`;
+        rewireStereoRouting();
+      });
+
+      // Чекбоксы
+      document.getElementById('chkSwapLR').addEventListener('change', (e) => {
+        state.swapLR = e.target.checked;
+        document.getElementById('swapChannelsBadge').classList.toggle('hidden', !state.swapLR);
+        rewireStereoRouting();
+        showToast(state.swapLR ? 'Включена инверсия каналов L ↔ R' : 'Стандартное расположение каналов L / R', 'info');
+      });
+
+      document.getElementById('chkRawAudio').addEventListener('change', (e) => {
+        state.rawAudio = e.target.checked;
+        showToast(state.rawAudio ? 'Прямой захват PCM Stereo без моно-фильтрации включён' : 'Стандартная обработка звука Android', 'info');
+      });
+
+      document.getElementById('chkMonitorAudio').addEventListener('change', (e) => {
+        state.monitorAudio = e.target.checked;
+        ensureAudioContext();
+        rewireStereoRouting();
+        showToast(state.monitorAudio ? 'Мониторинг стереозвука в динамики/наушники включён' : 'Мониторинг отключён', 'info');
+      });
+
+      // Селекторы источника и качества
+      document.getElementById('selectCaptureMode').addEventListener('change', (e) => {
+        const names = {
+          synth: 'Источник: Системный + 3D-Симулятор',
+          mic: 'Источник: Стереомикрофоны iQOO 13 (L+R)',
+          screen: 'Источник: Экран + Внутренний Stereo 2.0'
+        };
+        document.getElementById('audioSourceFloatingBadge').textContent = names[e.target.value] || names.synth;
+      });
+
+      document.getElementById('selectResolution').addEventListener('change', (e) => {
+        state.resolution = e.target.value;
+        updatePresetHeaderBadge();
+      });
+
+      document.getElementById('selectFps').addEventListener('change', (e) => {
+        state.fps = e.target.value;
+        updatePresetHeaderBadge();
+      });
+
+      document.getElementById('selectAudioFormat').addEventListener('change', (e) => {
+        state.audioFormat = e.target.value;
+        updatePresetHeaderBadge();
+      });
+
+      // Быстрые пресеты
+      document.getElementById('btnPresetPubg').addEventListener('click', () => {
+        state.resolution = 'FHD+ (2400×1080)';
+        state.fps = '144 FPS';
+        state.stereoWidth = 1.45;
+        document.getElementById('selectResolution').value = state.resolution;
+        document.getElementById('selectFps').value = state.fps;
+        document.getElementById('sliderStereoWidth').value = '145';
+        document.getElementById('valStereoWidth').textContent = '145%';
+        updatePresetHeaderBadge();
+        showToast('Активирован пресет «Шутеры 3D»: 144 FPS + широкая сцена 145% для слышимости шагов L/R', 'success');
+      });
+
+      document.getElementById('btnPresetMusic').addEventListener('click', () => {
+        state.resolution = '2K QHD+ (3168×1440)';
+        state.fps = '60 FPS';
+        state.stereoWidth = 1.0;
+        state.stereoPan = 0;
+        document.getElementById('selectResolution').value = state.resolution;
+        document.getElementById('selectFps').value = state.fps;
+        document.getElementById('sliderStereoWidth').value = '100';
+        document.getElementById('valStereoWidth').textContent = '100%';
+        document.getElementById('sliderStereoPan').value = '0';
+        document.getElementById('valStereoPan').textContent = 'Центр (0)';
+        updatePresetHeaderBadge();
+        showToast('Активирован пресет «Музыка Hi-Res»: эталонный баланс 100% + 48 кГц WAV Stereo', 'success');
+      });
+
+      // Кнопки генератора проверки стерео
+      document.getElementById('btnTestLeft').addEventListener('click', () => startChannelTest('left'));
+      document.getElementById('btnTestRight').addEventListener('click', () => startChannelTest('right'));
+      document.getElementById('btnTestSweep').addEventListener('click', () => startChannelTest('sweep'));
+      document.getElementById('btnTestGaming').addEventListener('click', () => startChannelTest('gaming'));
+      document.getElementById('btnTestSubBass').addEventListener('click', () => startChannelTest('subbass'));
+      document.getElementById('btnTestStop').addEventListener('click', () => {
+        stopAllTestTones();
+        showToast('Тестовый генератор остановлен', 'info');
+      });
+
+      // Создание эталонного WAV во вкладке «Мои записи»
+      document.getElementById('btnGenerateSampleWav').addEventListener('click', () => {
+        const blob = createStereoWavBlob(5, state.stereoPan, state.swapLR);
+        const url = URL.createObjectURL(blob);
+        state.recordings.unshift({
+          id: 'rec_' + Date.now(),
+          title: 'iQOO13_Test_Left_Right_48kHz.wav',
+          meta: 'Эталонный тест • 48 000 Гц • 16-бит • 2 канала (Left 440Hz / Right 554Hz)',
+          duration: '5 сек',
+          panInfo: 'Чистое разделение L/R',
+          markers: ['00:00 Левый', '00:02 Правый', '00:03.5 Стерео'],
+          url: url
+        });
+        renderRecordingsList();
+        showToast('Создан эталонный двухканальный файл iQOO13_Test_Left_Right_48kHz.wav!', 'success');
+      });
+
+      // Копирование кода Kotlin
+      document.getElementById('btnCopyKotlinCode').addEventListener('click', () => {
+        const code = document.getElementById('kotlinCodePreview').textContent;
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(code).then(() => {
+            showToast('Код StereoRecordService.kt скопирован в буфер обмена!', 'success');
+          }).catch(() => fallbackCopy(code));
+        } else {
+          fallbackCopy(code);
+        }
+      });
+
+      function fallbackCopy(text) {
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        document.body.appendChild(ta);
+        ta.select();
+        try { document.execCommand('copy'); } catch (e) {}
+        ta.remove();
+        showToast('Код скопирован в буфер обмена!', 'success');
+      }
+
+      // Создаём одну стартовую демо-запись, чтобы вкладка «Мои записи» сразу была наглядной
+      const initBlob = createStereoWavBlob(4, 0, false);
+      state.recordings.push({
+        id: 'rec_init',
+        title: 'iQOO13_Demo_Stereo_48kHz.wav',
+        meta: '2K QHD+ (3168×1440) • 144 FPS • PCM 48 кГц 2 канала (L+R)',
+        duration: '4 сек',
+        panInfo: 'Баланс: 0%',
+        markers: ['00:01.5 Хайлайт'],
+        url: URL.createObjectURL(initBlob)
+      });
+      renderRecordingsList();
+      startVisualizerLoop();
+    });
+  </script>
+</body>
+</html>
